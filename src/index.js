@@ -10,7 +10,7 @@ if (!process.env.EXTENSION_CLIENT_ID ||
         throw new Error('Could not start server, missing environment variables!');
     }
 
-app.post('/api/Dota2/submitGameData/:channelId', jsonParser, (req: any, res: any) => {
+app.post('/api/Dota2/submitGameData/:channelId', jsonParser, (req, res) => {
     sendPubSubMessage(req.params.channelId, req.body);
     res.sendStatus(200);
 });
@@ -24,7 +24,7 @@ app.listen(process.env.PORT || 5000, () => {
  * @param channelId Twitch channel to send the PubSub message to
  * @param message The data to send to the channel
  */
-function sendPubSubMessage(channelId: string, message: any) {
+function sendPubSubMessage(channelId, message) {
     const pubSubUrl = `https://api.twitch.tv/extensions/message/${channelId}`;
     const payload = {
         'content_type': 'application/json',
@@ -41,7 +41,7 @@ function sendPubSubMessage(channelId: string, message: any) {
     }
     console.log('OPTIONS: ', options);
     axios.post(pubSubUrl, payload, options)
-        .catch((response: any) => {
+        .catch((response) => {
             console.log('Error', response.response.data.message)
         })
 }
@@ -52,7 +52,7 @@ function sendPubSubMessage(channelId: string, message: any) {
  * 
  * @param gameData The data to validate as Dota2 Game Data
  */
-function validateGameData(gameData: string) {
+function validateGameData(gameData) {
     //TODO
 }
 
@@ -63,7 +63,7 @@ function validateGameData(gameData: string) {
  * 
  * TODO: Cache these tokens for each channel so we don't have to keep generating them on each request.
  */
-function generateAuthToken(channelId: string) {
+function generateAuthToken(channelId) {
 
     let rawJWT = {
         exp: Math.floor(Date.now()/1000) + 1*60*60,
@@ -74,7 +74,7 @@ function generateAuthToken(channelId: string) {
             send: ["*"]
         }
     }
-    const secret = Buffer.from(process.env.EXTENSION_SECRET_KEY as any, 'base64');
+    const secret = Buffer.from(process.env.EXTENSION_SECRET_KEY, 'base64');
     const token = jwt.sign(rawJWT, secret);
     return token;
 }
