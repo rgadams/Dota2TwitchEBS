@@ -1,4 +1,6 @@
 const express = require('express');
+const bodyParser = require('body-parser');
+const jsonParser = bodyParser.json();
 const app = express();
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
@@ -8,7 +10,7 @@ if (!process.env.EXTENSION_CLIENT_ID ||
         throw new Error('Could not start server, missing environment variables!');
     }
 
-app.post('/api/submitGameData/:channelId', (req: any, res: any) => {
+app.post('/api/Dota2/submitGameData/:channelId', jsonParser, (req: any, res: any) => {
     sendPubSubMessage(req.params.channelId, req.body);
     res.sendStatus(200);
 });
@@ -34,10 +36,14 @@ function sendPubSubMessage(channelId: string, message: any) {
         headers: {
             'Content-Type': 'application/json',
             'Client-Id': process.env.EXTENSION_CLIENT_ID,
-            'Authorization': 'Bearer ' + token
+            'Authorization': 'Bearer ' + token,
         }
     }
+    console.log('OPTIONS: ', options);
     axios.post(pubSubUrl, payload, options)
+        .catch((response: any) => {
+            console.log('Error', response.response.data.message)
+        })
 }
 
 /**
@@ -58,17 +64,17 @@ function validateGameData(gameData: string) {
  * TODO: Cache these tokens for each channel so we don't have to keep generating them on each request.
  */
 function generateAuthToken(channelId: string) {
-    const timeNow: any = new Date();
-    timeNow.setMinutes(timeNow.getMinutes() + 60);
 
     let rawJWT = {
-        exp: Math.floor(timeNow/1000),
+        exp: Math.floor(Date.now()/1000) + 1*60*60,
         user_id: 'softshadow',
-        channel_id: channelId,
         role: 'external',
+        channel_id: channelId,
         pubsub_perms: {
             send: ["*"]
         }
     }
-    return jwt.sign(rawJWT, process.env.EXTENSION_SECRET_KEY)
+    const secret = Buffer.from(process.env.EXTENSION_SECRET_KEY as any, 'base64');
+    const token = jwt.sign(rawJWT, secret);
+    return token;
 }
