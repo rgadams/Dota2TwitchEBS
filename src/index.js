@@ -1,9 +1,14 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const jsonpack = require('jsonpack/main');
 const jsonParser = bodyParser.json();
 const app = express();
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
+const heroes = require('./resources/heroes_data.json');
+const nt = require('./name_translator.js');
+
+const NameTranslator = new nt();
 
 if (!process.env.EXTENSION_CLIENT_ID ||
     !process.env.EXTENSION_SECRET_KEY) {
@@ -11,7 +16,15 @@ if (!process.env.EXTENSION_CLIENT_ID ||
     }
 
 app.post('/api/Dota2/submitGameData/:channelId', jsonParser, (req, res) => {
-    sendPubSubMessage(req.params.channelId, req.body);
+    validateGameData();
+    const message = translateGameData(req.body);
+    console.log(message);
+    sendPubSubMessage(req.params.channelId, message);
+    res.sendStatus(200);
+});
+app.post('/api/Dota2/testGameData', jsonParser, (req, res) => {
+    validateGameData();
+    const message = translateGameData(req.body);
     res.sendStatus(200);
 });
 app.listen(process.env.PORT || 5000, () => {
@@ -39,11 +52,37 @@ function sendPubSubMessage(channelId, message) {
             'Authorization': 'Bearer ' + token,
         }
     }
-    console.log('OPTIONS: ', options);
+
     axios.post(pubSubUrl, payload, options)
         .catch((response) => {
             console.log('Error', response.response.data.message)
         })
+}
+
+function translateGameData(gameData) {
+    const hero = heroes[gameData.heroId];
+
+    translatedGameState = {
+        heroId: gameData.heroId,
+        neutralItem: gameData.neutralItem,
+        talentChoices: gameData.talentChoices,
+        consumedScepter: gameData.consumedScepter,
+        consumedShard: gameData.consumedShard,
+    }
+
+    translatedGameState.abilities = Object.values(gameData.abilities)
+        .map((ability) => {
+            return NameTranslator.translateAbilityName(ability.name, hero.name);
+        });
+
+    translatedGameState.activeItems = gameData.activeItems.map((item) => { 
+        return NameTranslator.translateItemName(item);
+    }); 
+    translatedGameState.backpackItems = gameData.backpackItems.map((item) => {
+        return NameTranslator.translateItemName(item);
+    });
+
+    return translatedGameState;
 }
 
 /**
