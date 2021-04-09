@@ -7,6 +7,7 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const heroes = require('./resources/heroes_data.json');
 const nt = require('./name_translator.js');
+const { readdirSync, read } = require('fs');
 
 const NameTranslator = new nt();
 
@@ -26,6 +27,28 @@ app.post('/api/Dota2/testGameData', jsonParser, (req, res) => {
     validateGameData();
     const message = translateGameData(req.body);
     res.sendStatus(200);
+});
+app.get('/api/Dota2/getDownloadVersions', (req, res) => {
+    res.send(getDownloadVersions());
+});
+app.get('/api/Dota2/download/:version/:os', (req, res) => {
+    const availableVersions = getDownloadVersions();
+    const os = req.params.os;
+    const version  = req.params.version;
+    if (availableVersions.includes(version)) {
+        let file = `src/downloads/${version}/`;
+        if (os === 'linux') {
+            file += 'dota2-gsi-client-linux.zip';
+            res.download(file);
+        } else if (os === 'windows') {
+            file += 'dota2-gsi-client-win.exe';
+            res.download(file, 'dota2-extension-client.exe', (err) => {
+                console.log(err);
+            });
+        } else {
+            res.sendStatus(404);
+        }
+    }
 });
 app.listen(process.env.PORT || 5000, () => {
     console.log(`Server running on port ${process.env.PORT || 5000}`);
@@ -116,4 +139,10 @@ function generateAuthToken(channelId) {
     const secret = Buffer.from(process.env.EXTENSION_SECRET_KEY, 'base64');
     const token = jwt.sign(rawJWT, secret);
     return token;
+}
+
+function getDownloadVersions() {
+    return readdirSync('src/downloads', { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name)
 }
